@@ -1,12 +1,14 @@
 package com.fitness.activityservice.service;
 
 
-import com.fitness.activityservice.ActivityRepository;
 import com.fitness.activityservice.dto.ActivityRequest;
 import com.fitness.activityservice.dto.ActivityResponse;
 import com.fitness.activityservice.model.Activity;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,11 +16,23 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ActivityService {
 
+    @Autowired
     private  final ActivityRepository activityRepository;
+
+    @Autowired
     private  final  UserValidationService userValidationService;
 
+    @Autowired
+    private final RabbitTemplate  rabbitTemplate;
+
+    @Value("${rabbitmq.exchange.name}")
+    private String  exchange;
+
+    @Value("${rabbitmq.routing.key}")
+    private String routingKey;
 
 
       private ActivityResponse mapToResponse(Activity activity){
@@ -53,8 +67,15 @@ public class ActivityService {
                 .startTime(request.getStartTime())
                 .additionalMetrics(request.getAdditionalMetrics())
                 .build();
+                   Activity savedAactivity = activityRepository.save(activity);
+        //publish to rabbitmw for ai processing
+        try{
+            rabbitTemplate.convertAndSend(exchange,routingKey,savedAactivity);
+        } catch(Exception e){
+            log.error("falied to publish  actvity to rabbit mq " + e);
 
-        Activity savedAactivity = activityRepository.save(activity);
+        }
+
         return  mapToResponse(savedAactivity);
     }
 

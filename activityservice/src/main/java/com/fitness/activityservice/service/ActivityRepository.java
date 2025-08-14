@@ -1,4 +1,4 @@
-package com.fitness.activityservice;
+package com.fitness.activityservice.service;
 
 
 import com.fitness.activityservice.model.Activity;
